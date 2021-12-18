@@ -1,5 +1,7 @@
 # Access Log Viewer
 
+View Nginx and Apache access.log files.
+
 ## Local Project setup
 
 ```bash
