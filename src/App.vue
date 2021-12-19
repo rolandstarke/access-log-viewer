@@ -19,7 +19,7 @@
 
               <br /><br />
 
-              <v-btn @click="$refs.files.click()">Browse Files</v-btn> or
+              <v-btn @click="$refs.files.click()">Browse Files</v-btn> <br class="d-sm-none"> or <br class="d-sm-none">
               <v-btn @click="loadSampleFile">Load sample File</v-btn>
               <input
                 @change="handleFileChange"
