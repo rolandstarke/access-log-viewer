@@ -6,11 +6,17 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "blob-to-buffer": "^1.2.9",
+    "buffer": "^6.0.3",
     "core-js": "^3.6.5",
+    "country-list": "^2.2.0",
     "date-fns": "^2.27.0",
+    "mmdb-lib": "^1.3.0",
     "pako": "^2.0.4",
     "pretty-bytes": "^5.6.0",
+    "ua-parser-js": "^1.0.2",
     "vue": "^2.6.11",
+    "vue-google-charts": "^0.3.3",
     "vuetify": "^2.4.0",
     "worker-loader": "^3.0.8"
   },

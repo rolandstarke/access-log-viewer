@@ -1,8 +1,46 @@
-import { parse } from 'date-fns'
+import { parse } from 'date-fns';
+const uaParser = require('ua-parser-js');
+const toBuffer = require("blob-to-buffer");
+import Reader from "mmdb-lib";
+
+function domainFromUrl(url) {
+    let result;
+    let match = url.match(/^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:/\n?=]+)/im);
+    if (match) {
+        result = match[1];
+        match = result.match(/^[^.]+\.(.+\..+)$/);
+        if (match) {
+            result = match[1];
+        }
+    }
+    return result
+}
+
+function getGeoIpDatabase() {
+    return new Promise((resolve, reject) => {
+        fetch('../geolite2-country.mmdb')
+            .then((r) => r.blob())
+            .then((blob) => {
+                toBuffer(blob, (err, buffer) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    buffer.utf8Slice = function (offset, size) {
+                        return this.toString('utf8', offset, size);
+                    };
+                    const reader = new Reader(buffer);
+                    resolve(reader);
+                });
+            });
+    });
+
+}
 
 
-onmessage = function (e) {
+onmessage = async function (e) {
     const log = e.data;
+
+    const geoIpDatabase = await getGeoIpDatabase();
 
 
     const lines = log.split('\n').map(line => {
@@ -20,6 +58,9 @@ onmessage = function (e) {
         ipAddress: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         date: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         statusCode: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        userAgend: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        referrer: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        request: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     }
 
 
@@ -35,6 +76,18 @@ onmessage = function (e) {
 
             if (['200', '404', '302', '303', '304', '500'].indexOf(column) !== -1) { // 200
                 detectedColumns.statusCode[i] = detectedColumns.statusCode[i] + 1 || 1;
+            }
+
+            if (column.indexOf('Mozilla') !== -1 || column.indexOf('AppleWebKit') !== -1) {
+                detectedColumns.userAgend[i] = detectedColumns.userAgend[i] + 1 || 1;
+            }
+
+            if (column.indexOf('http://') !== -1 || column.indexOf('https://') !== -1) {
+                detectedColumns.referrer[i] = detectedColumns.referrer[i] + 1 || 1;
+            }
+
+            if (column.indexOf('GET /') !== -1 || column.indexOf('POST /') !== -1) {
+                detectedColumns.request[i] = detectedColumns.request[i] + 1 || 1;
             }
         });
     });
@@ -60,6 +113,23 @@ onmessage = function (e) {
 
         if (line[detectedColumns.transfere]) {
             logLine.transfere = +line[detectedColumns.transfere];
+        }
+
+        if (line[detectedColumns.userAgend]) {
+            logLine.userAgend = line[detectedColumns.userAgend];
+        }
+
+        if (line[detectedColumns.request]) {
+            const request = line[detectedColumns.request].replace(/"/g, '');
+            logLine.method = request.split(' ')[0] || '';
+            logLine.url = request.split(' ')[1] || '';
+            logLine.protocol = request.split(' ')[2] || '';
+        }
+
+
+        if (line[detectedColumns.referrer]) {
+            logLine.referrer = line[detectedColumns.referrer].replace(/"/g, '');
+            logLine.referrerDomain = domainFromUrl(logLine.referrer);
         }
 
         if (line[detectedColumns.date]) {
@@ -93,9 +163,27 @@ onmessage = function (e) {
             }
         }
 
+        const parsedUserAgend = uaParser(parsedLog.userAgend);
+        let browser = parsedUserAgend.browser.name;
+        if (browser === 'Mobile Safari') {
+            browser = 'Safari';
+        }
+        const device = parsedUserAgend.device.type || 'desktop';
+
+        let country;
+        const ipLookup = geoIpDatabase.get(parsedLog.ipAddress);
+        if (ipLookup && ipLookup.country && ipLookup.country.iso_code) {
+            country = ipLookup.country.iso_code;
+        }
+
         sessions.push({
             ipAddress: parsedLog.ipAddress,
+            date: parsedLog.date,
             lastActive: parsedLog.date,
+            browser: browser,
+            device: device,
+            referrerDomain: parsedLog.referrerDomain,
+            country: country,
         });
     });
 
