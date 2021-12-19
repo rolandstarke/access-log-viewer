@@ -19,7 +19,8 @@
 
               <br /><br />
 
-              <v-btn @click="$refs.files.click()">Browse Files</v-btn>
+              <v-btn @click="$refs.files.click()">Browse Files</v-btn> or
+              <v-btn @click="loadSampleFile">Load sample File</v-btn>
               <input
                 @change="handleFileChange"
                 type="file"
@@ -80,42 +81,46 @@
               </v-tabs>
               <v-tabs-items v-model="tab">
                 <v-tab-item :transition="false">
-                  <v-card flat v-if="tab === 0">
+                  <v-card flat v-if="tab === 0 && logs.length > 0">
                     <v-card-text>
                       <GChart
                         type="LineChart"
                         :data="chartDataSessions"
                         :options="{
                           legend: 'none',
-                          height: 400,
+                          chartArea: { width: '90%', height: '80%' },
+                          colors: ['#2196f3'],
                         }"
                       />
                     </v-card-text>
                   </v-card>
                 </v-tab-item>
                 <v-tab-item :transition="false">
-                  <v-card flat v-if="tab === 1">
+                  <v-card flat v-if="tab === 1 && logs.length > 0">
                     <v-card-text>
                       <GChart
                         type="LineChart"
                         :data="chartDataRequests"
                         :options="{
                           legend: 'none',
-                          height: 400,
+                          chartArea: { width: '90%', height: '80%' },
+                          colors: ['#2196f3'],
                         }"
                       />
                     </v-card-text>
                   </v-card>
                 </v-tab-item>
                 <v-tab-item :transition="false">
-                  <v-card flat v-if="tab === 2">
+                  <v-card flat v-if="tab === 2 && logs.length > 0">
                     <v-card-text>
                       <GChart
                         type="LineChart"
                         :data="chartDataTransfere"
                         :options="{
                           legend: 'none',
-                          height: 400,
+                          chartArea: { width: '90%', height: '80%' },
+                          colors: ['#2196f3'],
+                          vAxis: { format: 'short' },
                         }"
                       />
                     </v-card-text>
@@ -136,15 +141,6 @@
                   :options="{
                     legend: 'none',
                     colorAxis: { colors: ['#93d5ed', '#1a73e8'] },
-                  }"
-                />
-
-                <GChart
-                  :settings="{}"
-                  type="BarChart"
-                  :data="chartDataCountry"
-                  :options="{
-                    legend: 'none',
                   }"
                 />
               </v-card-text>
@@ -462,14 +458,6 @@ import IconTablet from "./components/icons/IconTablet.vue";
 import { GChart } from "vue-google-charts";
 const pako = require("pako");
 const prettyBytes = require("pretty-bytes");
-const { getName, overwrite } = require("country-list");
-
-overwrite([
-  {
-    code: "US",
-    name: "USA",
-  },
-]);
 
 export default {
   components: {
@@ -561,10 +549,6 @@ export default {
       ["2022", 0],
     ],
     chartDataMap: [["Country", "Sessions"]],
-    chartDataCountry: [
-      ["Country", "Sessions"],
-      ["USA", 0],
-    ],
   }),
   methods: {
     prettyBytes: prettyBytes,
@@ -611,6 +595,41 @@ export default {
       this.dropHovering = false;
       this.handleFiles(e.dataTransfer.files);
     },
+    handleFiles: async function (files) {
+      const promises = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = {
+          id: Math.random(),
+          name: files[i].name,
+          parsed: null,
+        };
+        this.files.push(file);
+        const promise = this.readFile(files[i])
+          .then(this.parseLog)
+          .then((parsed) => {
+            file.parsed = parsed;
+            console.log(JSON.parse(JSON.stringify(parsed)));
+          });
+        promises.push(promise);
+      }
+      await Promise.all(promises);
+      this.calculateValues();
+    },
+    loadSampleFile: async function () {
+      const file = {
+        id: Math.random(),
+        name: "sample.access.log",
+        parsed: null,
+      };
+      this.files.push(file);
+
+      file.parsed = await fetch("sample.access.log.gz")
+        .then((r) => r.blob())
+        .then((b) => b.arrayBuffer())
+        .then((a) => pako.inflate(a, { to: "string" }))
+        .then(this.parseLog);
+      this.calculateValues();
+    },
     calculateValues: function () {
       let logs = [];
       let sessions = [];
@@ -636,6 +655,7 @@ export default {
       const requestCounter = {};
       const transfereCounter = {};
       const countryCounter = {};
+      const dates = {};
       let transfere = 0;
 
       let splitTime = "hour";
@@ -663,9 +683,21 @@ export default {
             " " +
             log.date.getHours().toString().padStart(2, "0") +
             ":00";
+          dates[time] = new Date(
+            log.date.getFullYear(),
+            log.date.getMonth(),
+            log.date.getDate(),
+            log.date.getHours()
+          );
         } else if (splitTime === "day") {
           time = log.date.toLocaleDateString();
+          dates[time] = new Date(
+            log.date.getFullYear(),
+            log.date.getMonth(),
+            log.date.getDate()
+          );
         }
+        dates[time] = log.date;
         requestCounter[time] = requestCounter[time] + 1 || 1;
         transfereCounter[time] =
           transfereCounter[time] + log.transfere || log.transfere;
@@ -689,8 +721,19 @@ export default {
             " " +
             log.date.getHours().toString().padStart(2, "0") +
             ":00";
+          dates[time] = new Date(
+            log.date.getFullYear(),
+            log.date.getMonth(),
+            log.date.getDate(),
+            log.date.getHours()
+          );
         } else if (splitTime === "day") {
           time = log.date.toLocaleDateString();
+          dates[time] = new Date(
+            log.date.getFullYear(),
+            log.date.getMonth(),
+            log.date.getDate()
+          );
         }
         sessionCounter[time] = sessionCounter[time] + 1 || 1;
       });
@@ -699,7 +742,7 @@ export default {
 
       const chartDataSessions = [];
       for (let date in sessionCounter) {
-        chartDataSessions.push([date, sessionCounter[date]]);
+        chartDataSessions.push([dates[date], sessionCounter[date]]);
       }
       if (chartDataSessions.length === 0) {
         chartDataSessions.push(["2022", 0]);
@@ -710,7 +753,7 @@ export default {
 
       const chartDataRequests = [];
       for (let date in requestCounter) {
-        chartDataRequests.push([date, requestCounter[date]]);
+        chartDataRequests.push([dates[date], requestCounter[date]]);
       }
       if (chartDataRequests.length === 0) {
         chartDataRequests.push(["2022", 0]);
@@ -719,21 +762,12 @@ export default {
       chartDataRequests.reverse();
       this.chartDataRequests = chartDataRequests;
 
-      const chartDataMap = [];
-      for (let country in countryCounter) {
-        chartDataMap.push([getName(country), countryCounter[country]]);
-      }
-      if (chartDataMap.length === 0) {
-        chartDataMap.push(["USA", 0]);
-      }
-      chartDataMap.sort((a, b) => b[1] - a[1]);
-      chartDataMap.unshift(["Country", "Sessions"]);
-      this.chartDataMap = chartDataMap;
-      this.chartDataCountry = chartDataMap.slice(0, 6);
-
       const chartDataTransfere = [];
       for (let date in transfereCounter) {
-        chartDataTransfere.push([date, {v: transfereCounter[date], f: prettyBytes(transfereCounter[date]) }]);
+        chartDataTransfere.push([
+          dates[date],
+          { v: transfereCounter[date], f: prettyBytes(transfereCounter[date]) },
+        ]);
       }
       if (chartDataTransfere.length === 0) {
         chartDataTransfere.push(["2022", 0]);
@@ -741,6 +775,14 @@ export default {
       chartDataTransfere.push(["Time", "Bytes"]);
       chartDataTransfere.reverse();
       this.chartDataTransfere = chartDataTransfere;
+
+      const chartDataMap = [];
+      for (let country in countryCounter) {
+        chartDataMap.push([country, countryCounter[country]]);
+      }
+      chartDataMap.sort((a, b) => b[1] - a[1]);
+      chartDataMap.unshift(["Country", "Sessions"]);
+      this.chartDataMap = chartDataMap;
 
       const mostStatusCodes = [];
       for (let statusCode in statusCodesCounter) {
@@ -811,26 +853,6 @@ export default {
         this.devices.mobile.percentage = 0;
         this.devices.tablet.percentage = 0;
       }
-    },
-    handleFiles: async function (files) {
-      const promises = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = {
-          id: Math.random(),
-          name: files[i].name,
-          parsed: null,
-        };
-        this.files.push(file);
-        const promise = this.readFile(files[i])
-          .then(this.parseLog)
-          .then((parsed) => {
-            file.parsed = parsed;
-            console.log(JSON.parse(JSON.stringify(parsed)));
-          });
-        promises.push(promise);
-      }
-      await Promise.all(promises);
-      this.calculateValues();
     },
   },
 };
