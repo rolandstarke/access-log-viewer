@@ -528,8 +528,9 @@ export default {
     mostUrlsWithoutAssets: [{ url: "/", hits: 0 }],
     headers: [
       { text: "Date", value: "date", filterable: false },
-      { text: "Page", value: "url" },
       { text: "IP Address", value: "ipAddress" },
+      { text: "Method", value: "method" },
+      { text: "Page", value: "url" },
       { text: "Status", value: "statusCode" },
       { text: "Transfere", value: "transfere", filterable: false },
     ],
