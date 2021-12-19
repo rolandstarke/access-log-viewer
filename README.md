@@ -2,6 +2,8 @@
 
 View Nginx and Apache access.log files.
 
+![image](preview.jpeg)
+
 ## Local Project setup
 
 ```bash
