@@ -297,7 +297,7 @@
                             "
                           >
                             <img
-                              :src="'http://' + item.referrer + '/favicon.ico'"
+                              :src="'https://' + item.referrer + '/favicon.ico'"
                               height="16"
                               width="16"
                               onerror="this.style.display='none'"
