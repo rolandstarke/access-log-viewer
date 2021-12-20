@@ -1,7 +1,7 @@
 import { parse } from 'date-fns';
 const uaParser = require('ua-parser-js');
-const toBuffer = require("blob-to-buffer");
-import Reader from "mmdb-lib";
+import Reader from 'mmdb-lib';
+const Buffer = require('buffer/').Buffer
 
 function domainFromUrl(url) {
     let result;
@@ -16,31 +16,28 @@ function domainFromUrl(url) {
     return result
 }
 
-function getGeoIpDatabase() {
-    return new Promise((resolve, reject) => {
-        fetch('../geolite2-country.mmdb')
-            .then((r) => r.blob())
-            .then((blob) => {
-                toBuffer(blob, (err, buffer) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    buffer.utf8Slice = function (offset, size) {
-                        return this.toString('utf8', offset, size);
-                    };
-                    const reader = new Reader(buffer);
-                    resolve(reader);
-                });
-            });
-    });
-
+async function getGeoIpDatabase() {
+    return fetch('../geolite2-country.mmdb.txt')
+        .then((r) => r.blob())
+        .then((b) => b.arrayBuffer())
+        .then((a) => {
+            const buffer = Buffer.from(a);
+            const cacheData = {};
+            const cache = {
+                get: (key) => cacheData[key],
+                set: (key, value) => cacheData[key] = value,
+            }
+            const reader = new Reader(buffer, { cache: cache });
+            return reader;
+        });
 }
+
+const geoIpDatabasePromise = getGeoIpDatabase();
 
 
 onmessage = async function (e) {
     const log = e.data;
 
-    const geoIpDatabase = await getGeoIpDatabase();
 
 
     const lines = log.split('\n').map(line => {
@@ -145,6 +142,7 @@ onmessage = async function (e) {
         parsedLogs.push(logLine);
     });
 
+    const geoIpDatabase = await geoIpDatabasePromise;
 
     const sessions = [];
     parsedLogs.forEach(parsedLog => {

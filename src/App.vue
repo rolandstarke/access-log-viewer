@@ -19,7 +19,9 @@
 
               <br /><br />
 
-              <v-btn @click="$refs.files.click()">Browse Files</v-btn> <br class="d-sm-none"> or <br class="d-sm-none">
+              <v-btn @click="$refs.files.click()">Browse Files</v-btn>
+              <br class="d-sm-none" />
+              or <br class="d-sm-none" />
               <v-btn @click="loadSampleFile">Load sample File</v-btn>
               <input
                 @change="handleFileChange"
@@ -456,7 +458,7 @@ import IconDesktop from "./components/icons/IconDesktop.vue";
 import IconMobile from "./components/icons/IconMobile.vue";
 import IconTablet from "./components/icons/IconTablet.vue";
 import { GChart } from "vue-google-charts";
-const pako = require("pako");
+const { inflate } = require("pako/lib/inflate");
 const prettyBytes = require("pretty-bytes");
 
 export default {
@@ -466,21 +468,6 @@ export default {
     IconMobile,
     IconTablet,
     GChart,
-  },
-  mounted: function () {
-    /*
-    fetch("geolite2-country.mmdb")
-      .then((r) => r.blob())
-      .then((blob) => {
-        toBuffer(blob, (err, buffer) => {
-          buffer.utf8Slice = function (offset, size) {
-            return this.toString('utf8', offset, size);
-          };
-          const reader = new Reader(buffer);
-          console.log(reader.get("66.6.44.4")); // inferred type `CityResponse`
-        });
-      });
-      */
   },
   data: () => ({
     files: [],
@@ -525,6 +512,7 @@ export default {
       { browser: "Edge", hits: 0 },
     ],
     mostUrls: [{ url: "/", hits: 0 }],
+    firstParse: null,
     mostUrlsWithoutAssets: [{ url: "/", hits: 0 }],
     headers: [
       { text: "Date", value: "date", filterable: false },
@@ -553,27 +541,17 @@ export default {
   }),
   methods: {
     prettyBytes: prettyBytes,
-    readFile: function (file) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-
-        if (file.name.match(/\.gz$/)) {
-          reader.addEventListener("load", function () {
-            resolve(pako.inflate(this.result, { to: "string" }));
-          });
-          reader.readAsArrayBuffer(file);
-        } else {
-          reader.addEventListener("load", function () {
-            resolve(this.result);
-          });
-          reader.readAsText(file);
-        }
-      });
+    readFile: async function (file) {
+      if (file.name.match(/\.gz$/)) {
+        return inflate(await file.arrayBuffer(), { to: "string" });
+      } else {
+        return file.text();
+      }
     },
     parseLog: async function (log) {
-      const timer = "parse " + Math.random();
-      console.time(timer);
-      const parsed = await new Promise((resolve) => {
+      await this.firstParse; //wait for first parse to finish so that worker and geoipdb is in cache
+
+      const parsed = new Promise((resolve) => {
         const worker = new Worker();
         worker.onmessage = function (e) {
           resolve(e.data);
@@ -582,7 +560,17 @@ export default {
         worker.postMessage(log);
       });
 
-      console.timeEnd(timer);
+      if (!this.firstParse) {
+        this.firstParse = parsed.catch(() => {});
+      }
+
+      
+      const timer = "parse " + Math.random();
+      console.time(timer);
+      parsed.then(() => {
+        console.timeEnd(timer);
+      });
+
       return parsed;
     },
     removeFile: function (id) {
@@ -609,7 +597,6 @@ export default {
           .then(this.parseLog)
           .then((parsed) => {
             file.parsed = parsed;
-            console.log(JSON.parse(JSON.stringify(parsed)));
           });
         promises.push(promise);
       }
@@ -627,7 +614,7 @@ export default {
       file.parsed = await fetch("sample.access.log.gz")
         .then((r) => r.blob())
         .then((b) => b.arrayBuffer())
-        .then((a) => pako.inflate(a, { to: "string" }))
+        .then((a) => inflate(a, { to: "string" }))
         .then(this.parseLog);
       this.calculateValues();
     },
