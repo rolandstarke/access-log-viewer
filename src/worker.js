@@ -35,6 +35,19 @@ async function getGeoIpDatabase() {
 const geoIpDatabasePromise = getGeoIpDatabase();
 
 
+const progress = {
+    detect: 0,
+    collect: 0,
+    parse: 0,
+};
+
+function postProgress() {
+    postMessage({
+        progress: progress.detect * 0.1 + progress.collect * 0.3 + progress.parse * 0.6,
+    });
+}
+
+
 onmessage = async function (e) {
     const log = e.data;
 
@@ -42,7 +55,7 @@ onmessage = async function (e) {
 
     const lines = log.split('\n').map(line => {
         line = line.trim() + ' ';
-        let colums = line.match(/(\[[^\]]*\]|"[^"]*"|[^"[\s]\S*)\s/g);
+        let colums = line.match(/(|\[[^\]]*\]|"[^"]*"|[^"[]([^\s,]|, )*)\s/g);
         if (colums) {
             colums = colums.map(v => v.trim());
         }
@@ -61,9 +74,15 @@ onmessage = async function (e) {
     }
 
 
-    lines.forEach(line => {
+    lines.slice(0, 10000).forEach((line, i) => {
+
+        if (i % 1000 === 0) {
+            progress.detect = i / 10000;
+            postProgress();
+        }
+
         line.forEach((column, i) => {
-            if (column.match(/^\d+\.\d+\.\d+\.\d+$/)) { // 188.103.4.49
+            if (column.match(/^\d+\.\d+\.\d+\.\d+/)) { // 188.103.4.49
                 detectedColumns.ipAddress[i] = detectedColumns.ipAddress[i] + 1 || 1;
             }
 
@@ -89,6 +108,9 @@ onmessage = async function (e) {
         });
     });
 
+    progress.detect = 1;
+    postProgress();
+
 
     for (const key in detectedColumns) {
         detectedColumns[key] = detectedColumns[key].indexOf(Math.max.apply(Math, detectedColumns[key]));
@@ -97,11 +119,17 @@ onmessage = async function (e) {
 
     const parsedLogs = [];
 
-    lines.forEach(line => {
+    lines.forEach((line, i) => {
+
+        if (i % 10000 === 0) {
+            progress.collect = i / lines.length;
+            postProgress();
+        }
+
         const logLine = {};
 
         if (line[detectedColumns.ipAddress]) {
-            logLine.ipAddress = line[detectedColumns.ipAddress];
+            logLine.ipAddress = line[detectedColumns.ipAddress].split(',')[0];
         }
 
         if (line[detectedColumns.statusCode]) {
@@ -137,30 +165,39 @@ onmessage = async function (e) {
             logLine.date = parse(dateString, 'dd/MMM/yyyy:HH:mm:ss xx', new Date());
         }
 
-        if (!logLine.ipAddress || !logLine.statusCode || !logLine.date) {
+        if (!logLine.ipAddress || !logLine.statusCode || !logLine.date || isNaN(logLine.date)) {
             return;
         }
 
         parsedLogs.push(logLine);
     });
 
+    progress.collect = 1;
+    postProgress();
+
     const geoIpDatabase = await geoIpDatabasePromise;
 
     const sessions = [];
-    parsedLogs.forEach(parsedLog => {
+    const sessionIpMap = {};
+
+
+    parsedLogs.forEach((parsedLog, i) => {
+
+        if (i % 5000 === 0) {
+            progress.parse = i / parsedLogs.length;
+            postProgress();
+        }
+
         if (parsedLog.statusCode !== 200) {
             return;
         }
 
-        for (let i = sessions.length - 1; i >= 0; i--) {
-            if (sessions[i].ipAddress === parsedLog.ipAddress) {
-                if (parsedLog.date - sessions[i].lastActive < 1000 * 60 * 30) {
-                    //last request is not long ago, this is not a new session
-                    sessions[i].lastActive = parsedLog.date;
-                    return;
-                }
-                break;
-            }
+        const previousSession = sessionIpMap[parsedLog.ipAddress];
+        
+        if (previousSession && parsedLog.date - previousSession.lastActive < 1000 * 60 * 30) {
+            //last request is not long ago, this is not a new session
+            previousSession.lastActive = parsedLog.date;
+            return;
         }
 
         const parsedUserAgend = uaParser(parsedLog.userAgend);
@@ -185,8 +222,13 @@ onmessage = async function (e) {
             referrerDomain: parsedLog.referrerDomain,
             country: country,
         });
+
+        sessionIpMap[parsedLog.ipAddress] = sessions[sessions.length - 1];
+
     });
 
+    progress.parse = 1;
+    postProgress();
 
 
 

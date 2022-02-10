@@ -45,7 +45,7 @@
                     {{ file.parsed.logs.length }}</v-list-item-subtitle
                   >
                   <v-list-item-subtitle v-if="!file.parsed"
-                    >Requests: loading...</v-list-item-subtitle
+                    >Requests: loading... {{ (file.progress * 100).toFixed(0) }}%</v-list-item-subtitle
                   >
                 </v-list-item-content>
                 <v-list-item-action>
@@ -548,12 +548,31 @@ export default {
         return file.text();
       }
     },
-    parseLog: async function (log) {
+    parseLog: async function (log, file) {
+      function fakeProgress(progress, time) {
+        setTimeout(function() {
+          if (file.progress < progress) {
+            file.progress = progress;
+          }
+        }, time);
+      }
+      fakeProgress(0.01, 2000);
+      fakeProgress(0.02, 7000);
+      fakeProgress(0.03, 15000);
+      fakeProgress(0.04, 30000);
+
       await this.firstParse; //wait for first parse to finish so that worker and geoipdb is in cache
 
       const parsed = new Promise((resolve) => {
         const worker = new Worker();
         worker.onmessage = function (e) {
+          if (e.data.progress !== undefined) {
+            if (file && e.data.progress > file.progress) {
+              file.progress = e.data.progress;
+            }
+            return;
+          }
+
           resolve(e.data);
           worker.terminate();
         };
@@ -561,7 +580,10 @@ export default {
       });
 
       if (!this.firstParse) {
-        this.firstParse = parsed.catch(() => {});
+        const timeout = new Promise(function(resolve){
+          setTimeout(resolve, 10000);
+        });
+        this.firstParse = Promise.race([parsed.catch(() => {}), timeout]);
       }
 
       
@@ -591,10 +613,11 @@ export default {
           id: Math.random(),
           name: files[i].name,
           parsed: null,
+          progress: 0,
         };
         this.files.push(file);
         const promise = this.readFile(files[i])
-          .then(this.parseLog)
+          .then((l) => this.parseLog(l, file))
           .then((parsed) => {
             file.parsed = parsed;
           });
@@ -608,6 +631,7 @@ export default {
         id: Math.random(),
         name: "sample.access.log",
         parsed: null,
+        progress: 0,
       };
       this.files.push(file);
 
@@ -615,7 +639,7 @@ export default {
         .then((r) => r.blob())
         .then((b) => b.arrayBuffer())
         .then((a) => inflate(a, { to: "string" }))
-        .then(this.parseLog);
+        .then((l) => this.parseLog(l, file));
       this.calculateValues();
     },
     calculateValues: function () {
