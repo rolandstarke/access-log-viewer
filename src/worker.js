@@ -108,8 +108,10 @@ onmessage = async function (e) {
             logLine.statusCode = +line[detectedColumns.statusCode];
         }
 
-        if (line[detectedColumns.transfere]) {
+        if (+line[detectedColumns.transfere]) {
             logLine.transfere = +line[detectedColumns.transfere];
+        } else {
+            logLine.transfere = 0;
         }
 
         if (line[detectedColumns.userAgend]) {

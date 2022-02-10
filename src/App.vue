@@ -817,7 +817,7 @@ export default {
           let parts = url.split(".");
           const fileending = parts[parts.length - 1];
           return (
-            ["png", "css", "js", "jpeg", "jpg", "ico", "svg", "webp"].indexOf(
+            ["png", "css", "js", "jpeg", "jpg", "ico", "svg", "webp", "gif", "cur"].indexOf(
               fileending
             ) === -1
           );
