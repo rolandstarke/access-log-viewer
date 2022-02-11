@@ -1,7 +1,9 @@
 import { parse } from 'date-fns';
 const uaParser = require('ua-parser-js');
 import Reader from 'mmdb-lib';
-const Buffer = require('buffer/').Buffer
+const Buffer = require('buffer/').Buffer;
+import isbot from 'isbot';
+
 
 function domainFromUrl(url) {
     let result;
@@ -144,6 +146,7 @@ onmessage = async function (e) {
 
         if (line[detectedColumns.userAgend]) {
             logLine.userAgend = line[detectedColumns.userAgend];
+            logLine.isBot = isbot(logLine.userAgend);
         }
 
         if (line[detectedColumns.request]) {
@@ -188,12 +191,12 @@ onmessage = async function (e) {
             postProgress();
         }
 
-        if (parsedLog.statusCode !== 200) {
+        if (parsedLog.statusCode !== 200 || parsedLog.isBot) {
             return;
         }
 
         const previousSession = sessionIpMap[parsedLog.ipAddress];
-        
+
         if (previousSession && parsedLog.date - previousSession.lastActive < 1000 * 60 * 30) {
             //last request is not long ago, this is not a new session
             previousSession.lastActive = parsedLog.date;
