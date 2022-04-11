@@ -4,7 +4,7 @@ View Nginx and Apache access.log files.
 
 https://rolandstarke.github.io/access-log-viewer/
 
-![image](preview.jpeg)
+![access log viewer apache and nginx](preview.jpeg)
 
 ## Local Project setup
 
