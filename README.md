@@ -1,31 +1,35 @@
 # Access Log Viewer
 
-View Nginx and Apache access.log files.
+View Nginx and Apache access.log files in your Browser.
 
 https://rolandstarke.github.io/access-log-viewer/
 
-![image](preview.jpeg)
+![access log viewer apache and nginx](preview.jpeg)
 
-## Local Project setup
+## Features
 
-```bash
-npm install
-```
+### Visitors
 
-### Compiles and hot-reloads for development
+Determine the amount of hits, visitors, bandwidth by the hour, or date.
 
-```bash
-npm run serve
-```
 
-### Compiles and minifies for production
+### Geographical Data
 
-```bash
-npm run build
-```
+Determine the visitors originating country.
 
-### Lints and fixes files
+### Device Data
 
-```bash
-npm run lint
-```
+Determine the browser and device type like desktop or mobile.
+
+### Referral-Traffic
+
+Determine referring websites that send traffic to your websites via direct links.
+
+### Most Requested Files
+
+Determine the urls with the most hits.
+
+### Status Codes
+
+Determine how often your server respondet with 200, 404, 500, ...  status codes.
+
