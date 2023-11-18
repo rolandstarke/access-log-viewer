@@ -49,11 +49,24 @@ function postProgress() {
     });
 }
 
+async function readFile(file) {
+    if (typeof file === 'string') {
+        return file;
+    }
+
+    if (/\.gz$/.test(file.name) || /gzip/.test(file.type)) {
+        // eslint-disable-next-line no-undef
+        const ds = new DecompressionStream("gzip");
+        const decompressedStream = file.stream().pipeThrough(ds);
+        return new Response(decompressedStream).text();
+    } else {
+        return file.text();
+    }
+}
+
 
 onmessage = async function (e) {
-    const log = e.data;
-
-
+    const log = await readFile(e.data);
 
     const lines = log.split('\n').map(line => {
         line = line.trim() + ' ';

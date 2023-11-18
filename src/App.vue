@@ -458,7 +458,6 @@ import IconDesktop from "./components/icons/IconDesktop.vue";
 import IconMobile from "./components/icons/IconMobile.vue";
 import IconTablet from "./components/icons/IconTablet.vue";
 import { GChart } from "vue-google-charts";
-const { inflate } = require("pako/lib/inflate");
 const prettyBytes = require("pretty-bytes");
 
 export default {
@@ -475,7 +474,6 @@ export default {
     tab: 0,
     search: "",
     logs: [],
-    sessions: [],
     numberOfRequests: 0,
     numberOfSessions: 0,
     transfere: 0,
@@ -541,13 +539,6 @@ export default {
   }),
   methods: {
     prettyBytes: prettyBytes,
-    readFile: async function (file) {
-      if (file.name.match(/\.gz$/)) {
-        return inflate(await file.arrayBuffer(), { to: "string" });
-      } else {
-        return file.text();
-      }
-    },
     parseLog: async function (log, file) {
       function fakeProgress(progress, time) {
         setTimeout(function() {
@@ -587,7 +578,7 @@ export default {
       }
 
       
-      const timer = "parse " + Math.random();
+      const timer = "parse " + file.name;
       console.time(timer);
       parsed.then(() => {
         console.timeEnd(timer);
@@ -616,29 +607,29 @@ export default {
           progress: 0,
         };
         this.files.push(file);
-        const promise = this.readFile(files[i])
+        const promise = Promise.resolve(files[i])
           .then((l) => this.parseLog(l, file))
           .then((parsed) => {
-            file.parsed = parsed;
+            file.parsed = Object.freeze(parsed); //for perfomrance reasons, so vue does not observe it
           });
         promises.push(promise);
       }
+      console.time('total');
       await Promise.all(promises);
       this.calculateValues();
+      console.timeEnd('total');
     },
     loadSampleFile: async function () {
       const file = {
         id: Math.random(),
-        name: "sample.access.log",
+        name: "sample.access.log.gz",
         parsed: null,
         progress: 0,
       };
       this.files.push(file);
 
       file.parsed = await fetch("sample.access.log.gz")
-        .then((r) => r.blob())
-        .then((b) => b.arrayBuffer())
-        .then((a) => inflate(a, { to: "string" }))
+        .then(r => r.blob())
         .then((l) => this.parseLog(l, file));
       this.calculateValues();
     },
@@ -654,8 +645,8 @@ export default {
       logs.sort((a, b) => b.date - a.date);
       sessions.sort((a, b) => b.date - a.date);
 
-      this.logs = logs;
-      this.sessions = sessions;
+
+      this.logs = Object.freeze(logs); //for perfomrance reasons, so vue does not observe it
       this.numberOfRequests = logs.length;
       this.numberOfSessions = sessions.length;
 
@@ -761,7 +752,7 @@ export default {
       }
       chartDataSessions.push(["Time", "Sessions"]);
       chartDataSessions.reverse();
-      this.chartDataSessions = chartDataSessions;
+      this.chartDataSessions = Object.freeze(chartDataSessions);
 
       const chartDataRequests = [];
       for (let date in requestCounter) {
@@ -772,7 +763,7 @@ export default {
       }
       chartDataRequests.push(["Time", "Requests"]);
       chartDataRequests.reverse();
-      this.chartDataRequests = chartDataRequests;
+      this.chartDataRequests = Object.freeze(chartDataRequests);
 
       const chartDataTransfere = [];
       for (let date in transfereCounter) {
@@ -786,7 +777,7 @@ export default {
       }
       chartDataTransfere.push(["Time", "Bytes"]);
       chartDataTransfere.reverse();
-      this.chartDataTransfere = chartDataTransfere;
+      this.chartDataTransfere = Object.freeze(chartDataTransfere);
 
       const chartDataMap = [];
       for (let country in countryCounter) {
@@ -794,7 +785,7 @@ export default {
       }
       chartDataMap.sort((a, b) => b[1] - a[1]);
       chartDataMap.unshift(["Country", "Sessions"]);
-      this.chartDataMap = chartDataMap;
+      this.chartDataMap = Object.freeze(chartDataMap);
 
       const mostStatusCodes = [];
       for (let statusCode in statusCodesCounter) {
