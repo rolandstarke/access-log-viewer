@@ -64,7 +64,6 @@
               <v-tabs
                 id="tabs"
                 v-model="tab"
-                background-color="white"
                 center-active
               >
                 <v-tabs-slider color="blue"></v-tabs-slider>
@@ -91,7 +90,32 @@
                         :options="{
                           legend: 'none',
                           chartArea: { width: '90%', height: '80%' },
-                          colors: ['#2196f3'],
+                          colors: $vuetify.theme.dark ? ['#09ade8'] : ['#2196f3'],
+                          backgroundColor: 'transparent',
+                          hAxis: {
+                              gridlines: {
+                                  color: $vuetify.theme.dark ? '#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ? '#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          },
+                          vAxis: {
+                             gridlines: {
+                                  color: $vuetify.theme.dark ?'#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ?'#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          },
                         }"
                       />
                     </v-card-text>
@@ -106,7 +130,32 @@
                         :options="{
                           legend: 'none',
                           chartArea: { width: '90%', height: '80%' },
-                          colors: ['#2196f3'],
+                          colors: $vuetify.theme.dark ? ['#09ade8'] : ['#2196f3'],
+                          backgroundColor: 'transparent',
+                          hAxis: {
+                              gridlines: {
+                                  color: $vuetify.theme.dark ? '#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ? '#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          },
+                          vAxis: {
+                             gridlines: {
+                                  color: $vuetify.theme.dark ?'#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ?'#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          }
                         }"
                       />
                     </v-card-text>
@@ -121,8 +170,32 @@
                         :options="{
                           legend: 'none',
                           chartArea: { width: '90%', height: '80%' },
-                          colors: ['#2196f3'],
-                          vAxis: { format: 'short' },
+                          colors: $vuetify.theme.dark ? ['#09ade8'] : ['#2196f3'],
+                          backgroundColor: 'transparent',
+                          hAxis: {
+                              gridlines: {
+                                  color: $vuetify.theme.dark ? '#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ? '#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          },
+                          vAxis: {
+                             gridlines: {
+                                  color: $vuetify.theme.dark ?'#444' : '#ccc'
+                              },
+                              minorGridlines: {
+                                color: $vuetify.theme.dark ?'#444' : '#ddd'
+                              },
+                              baselineColor: $vuetify.theme.dark ?'#444' : '#ccc',
+                              textStyle: {
+                                color: $vuetify.theme.dark ? '#aaa' : '#444'
+                              }
+                          }
                         }"
                       />
                     </v-card-text>
@@ -142,7 +215,9 @@
                   :data="chartDataMap"
                   :options="{
                     legend: 'none',
-                    colorAxis: { colors: ['#93d5ed', '#1a73e8'] },
+                    datalessRegionColor: $vuetify.theme.dark ? '#333' : '#f5f5f5',
+                    colorAxis: { colors: $vuetify.theme.dark ? ['#365680', '#09ade8'] : ['#93d5ed', '#1a73e8'] },
+                    backgroundColor: 'transparent',
                   }"
                 />
               </v-card-text>
@@ -402,7 +477,7 @@
         </v-row>
       </v-container>
     </v-main>
-    <v-footer padless>
+    <v-footer padless dark>
       <v-card flat tile width="100%" class="primary lighten-1 text-center">
         <v-card-text>
           <v-btn class="mx-4" icon>
@@ -417,9 +492,9 @@
 
         <v-divider></v-divider>
 
-        <v-card-text class="white--text">
+        <v-card-text>
           This product includes GeoLite2 data created by MaxMind, available from
-          <a class="white--text" target="_blank" href="https://www.maxmind.com"
+          <a target="_blank" href="https://www.maxmind.com" style="color: rgba(255, 255, 255, 0.7)"
             >https://www.maxmind.com</a
           >.
         </v-card-text>
@@ -450,6 +525,16 @@
 #tabs .v-tab {
   flex-direction: column;
 }
+.theme--dark.v-tabs > .v-tabs-bar .v-tab.v-tab--active{
+  color: #fff;
+}
+.theme--dark .google-visualization-tooltip path {        
+  fill: #111;
+  stroke: #000;
+}
+.theme--dark .google-visualization-tooltip text {        
+  fill: #eee;
+}
 </style>
 <script>
 import Worker from "worker-loader!./worker.js";
@@ -467,6 +552,11 @@ export default {
     IconMobile,
     IconTablet,
     GChart,
+  },
+  mounted: function() {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+      this.$vuetify.theme.dark = e.matches;
+    });
   },
   data: () => ({
     files: [],
