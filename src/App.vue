@@ -210,6 +210,7 @@
               <v-card-title> Sessions by Country </v-card-title>
               <v-card-text>
                 <GChart
+                  class="google-geo-chart"
                   :settings="{ packages: ['geochart'] }"
                   type="GeoChart"
                   :data="chartDataMap"
@@ -525,8 +526,18 @@
 #tabs .v-tab {
   flex-direction: column;
 }
-.theme--dark.v-tabs > .v-tabs-bar .v-tab.v-tab--active{
+.theme--dark.v-tabs > .v-tabs-bar .v-tab.v-tab--active {
   color: #fff;
+}
+.theme--dark .google-geo-chart path[fill*="#_ABSTRACT_RENDERER_ID"] {
+  display: none; /* white dots in dark mode visible, no clue what this renders anyway */
+}
+.theme--dark .google-geo-chart path:hover {
+  stroke:#77a8da;
+}
+.theme--dark .google-visualization-tooltip path {        
+  fill: #111;
+  stroke: #000;
 }
 .theme--dark .google-visualization-tooltip path {        
   fill: #111;
